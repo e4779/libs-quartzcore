@@ -55,13 +55,13 @@
 + (BOOL) disableActions;
 + (void) setDisableActions: (BOOL)disableActions;
 
++ (void (^)(void)) completionBlock;
++ (void) setCompletionBlock: (void (^)(void))block;
+
 @end
 
 extern NSString *kCATransactionAnimationDuration;
 extern NSString *kCATransactionAnimationTimingFunction;
 extern NSString *kCATransactionDisableActions;
-
-// TODO: setValue:forKey: for constants:
-// - kCATransactionCompletionBlock
 
 /* vim: set cindent cinoptions=>4,n-2,{2,^-2,:2,=2,g0,h2,p5,t0,+2,(0,u0,w1,m1 expandtabs shiftwidth=2 tabstop=8: */

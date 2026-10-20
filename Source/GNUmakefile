@@ -16,7 +16,7 @@ FRAMEWORK_NAME = QuartzCore
 
 -include ../config.make
 
-QuartzCore_OBJCFLAGS += -std=c99
+QuartzCore_OBJCFLAGS += -std=c99 -fblocks
 QuartzCore_HEADER_FILES_DIR = ../Headers/QuartzCore
 QuartzCore_HEADER_FILES = \
 	AppleSupport.h \

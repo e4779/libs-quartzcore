@@ -50,12 +50,14 @@ static NSMutableArray *transactionStack = nil;
 @property (retain) NSMutableDictionary *values;
 @property (retain) NSMutableArray *actions;
 @property (assign, getter=isImplicit) BOOL implicit;
+@property (copy) void (^completionBlock)(void);
 @end
 
 @implementation CATransaction
 @synthesize values=_values;
 @synthesize actions=_actions;
 @synthesize implicit=_implicit;
+@synthesize completionBlock=_completionBlock;
 
 + (void) begin
 {
@@ -138,6 +140,16 @@ static NSMutableArray *transactionStack = nil;
   [[self topTransaction] setDisableActions: disableActions];
 }
 
++ (void (^)(void)) completionBlock
+{
+  return [[self topTransaction] completionBlock];
+}
+
++ (void) setCompletionBlock: (void (^)(void))block
+{
+  [[self topTransaction] setCompletionBlock: block];
+}
+
 - (CFTimeInterval) animationDuration
 {
   return [[self valueForKey: kCATransactionAnimationDuration] doubleValue];
@@ -218,6 +230,7 @@ static NSMutableArray *transactionStack = nil;
 {
   [_values release];
   [_actions release];
+  [_completionBlock release];
 
   [super dealloc];
 }
@@ -275,6 +288,18 @@ static NSMutableArray *transactionStack = nil;
                     arguments: arguments];
     }
   [_actions removeAllObjects];
+
+  /* Fire the completion block once, after all actions ran.  The ivar is
+     cleared before the call so a block that commits transactions of its
+     own can never make it fire twice. */
+  if (_completionBlock)
+    {
+      void (^completion)(void) = [_completionBlock retain];
+      [_completionBlock release];
+      _completionBlock = nil;
+      completion();
+      [completion release];
+    }
 }
 
 - (void)registerAction: (NSObject<CAAction> *)action

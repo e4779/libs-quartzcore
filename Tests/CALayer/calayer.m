@@ -29,6 +29,7 @@
 #endif
 
 #import "QuartzCore/CALayer.h"
+#import <CoreGraphics/CoreGraphics.h>
 #import "../Testing.h"
 
 @interface CALayerTestSubclass : CALayer
@@ -97,6 +98,52 @@ int main(int argc, char ** argv)
     "Setter and getter for dynamic property bool are working");
 
   //////////////////////////
+
+  //////////////////////////
+
+  /* Regression: -frame is derived from bounds, position and anchorPoint. */
+  {
+    CALayer *geometryLayer = [CALayer layer];
+
+    [geometryLayer setFrame: CGRectMake(10.0, 20.0, 100.0, 50.0)];
+
+    PASS(CGRectEqualToRect([geometryLayer frame], CGRectMake(10.0, 20.0, 100.0, 50.0)),
+      "frame survives a set/get roundtrip");
+
+    PASS(CGPointEqualToPoint([geometryLayer position], CGPointMake(60.0, 45.0)),
+      "setFrame: places a centered anchorPoint at the frame midpoint");
+
+    PASS(CGSizeEqualToSize([geometryLayer bounds].size, CGSizeMake(100.0, 50.0)),
+      "setFrame: moves the frame size into bounds");
+
+    /* Moving only the position must move the frame origin, bounds intact. */
+    [geometryLayer setPosition: CGPointMake(160.0, 95.0)];
+
+    PASS(CGRectEqualToRect([geometryLayer frame], CGRectMake(110.0, 70.0, 100.0, 50.0)),
+      "setting position moves the frame origin");
+  }
+
+  //////////////////////////
+
+  /* Regression: point conversion through a superlayer. */
+  {
+    CALayer *superlayer = [CALayer layer];
+    CALayer *sublayer = [CALayer layer];
+
+    [superlayer addSublayer: sublayer];
+    [sublayer setPosition: CGPointMake(30.0, 40.0)];
+
+    CGPoint inSuper = [sublayer convertPoint: CGPointMake(1.0, 2.0)
+                                    toLayer: superlayer];
+
+    PASS(CGPointEqualToPoint(inSuper, CGPointMake(31.0, 42.0)),
+      "convertPoint:toLayer: maps into superlayer coordinates");
+
+    PASS(CGPointEqualToPoint(
+           [sublayer convertPoint: inSuper fromLayer: superlayer],
+           CGPointMake(1.0, 2.0)),
+      "convertPoint:fromLayer: converts back to the original point");
+  }
 
   if(testsFailed)
     {
