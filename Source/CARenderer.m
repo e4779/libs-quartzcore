@@ -419,6 +419,58 @@ CARendererOffscreenDebugColoringEnabled(void)
   return enabled;
 }
 
+/* Draws a width x height quad centered on the current modelview
+   origin, sampling the currently bound texture over its full extent.
+   For rectangle textures pass the texel-space extent in textureMaxX
+   and textureMaxY; for normalized textures pass 1.0.  Client-side
+   vertex arrays only (GL 2.0-era fixed-function compatibility, no
+   VBOs required).  GL_VERTEX_ARRAY, GL_COLOR_ARRAY and
+   GL_TEXTURE_COORD_ARRAY must be enabled, as -render does.  rgba is a
+   per-vertex color, or NULL for opaque white; the current GL color is
+   never touched.  Textures drawn this way are FBO-rendered and are
+   sampled unflipped (Y-ORIENTATION rule 4). */
+static void
+CARendererDrawTexturedQuad(GLfloat width, GLfloat height,
+                           GLfloat textureMaxX, GLfloat textureMaxY,
+                           const GLfloat * rgba)
+{
+  static const GLfloat white[4] = { 1.0, 1.0, 1.0, 1.0 };
+  GLfloat vertices[8];
+  GLfloat texCoords[8];
+  GLfloat colors[16];
+  int i;
+
+  vertices[0] = -width / 2.0;
+  vertices[1] = -height / 2.0;
+  vertices[2] = -width / 2.0;
+  vertices[3] = height / 2.0;
+  vertices[4] = width / 2.0;
+  vertices[5] = height / 2.0;
+  vertices[6] = width / 2.0;
+  vertices[7] = -height / 2.0;
+
+  texCoords[0] = 0.0;
+  texCoords[1] = 0.0;
+  texCoords[2] = 0.0;
+  texCoords[3] = textureMaxY;
+  texCoords[4] = textureMaxX;
+  texCoords[5] = textureMaxY;
+  texCoords[6] = textureMaxX;
+  texCoords[7] = 0.0;
+
+  if (rgba == NULL)
+    rgba = white;
+  for (i = 0; i < 4; i++)
+    {
+      memcpy(colors + i * 4, rgba, sizeof(GLfloat) * 4);
+    }
+
+  glVertexPointer(2, GL_FLOAT, 0, vertices);
+  glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
+  glColorPointer(4, GL_FLOAT, 0, colors);
+  glDrawArrays(GL_QUADS, 0, 4);
+}
+
 /* Internal method that renders a single layer and then proceeds by recursing, rendering its children. */
 - (void) _renderLayer: (CALayer *)layer
         withTransform: (CATransform3D)transform
@@ -478,7 +530,6 @@ CARendererOffscreenDebugColoringEnabled(void)
           [_blurHorizProgram bindUniformAtLocation: loc
                                      toUnsignedInt: 0];
 
-          // TODO: replace use of glBegin()/glEnd()
           [texture bind];
 
           GLfloat textureMaxX = 1.0, textureMaxY = 1.0;
@@ -493,16 +544,8 @@ CARendererOffscreenDebugColoringEnabled(void)
               glTexParameteri([texture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
 
-          glBegin(GL_QUADS);
-          glTexCoord2f(0, 0);
-          glVertex2f(-[texture width]/2.0, -[texture height]/2.0);
-          glTexCoord2f(0, textureMaxY);
-          glVertex2f(-[texture width]/2.0, [texture height]/2.0);
-          glTexCoord2f(textureMaxX, textureMaxY);
-          glVertex2f([texture width]/2.0, [texture height]/2.0);
-          glTexCoord2f(textureMaxX, 0);
-          glVertex2f([texture width]/2.0, -[texture height]/2.0);
-          glEnd();
+          CARendererDrawTexturedQuad([texture width], [texture height],
+                                     textureMaxX, textureMaxY, NULL);
           glDisable([texture textureTarget]);
 
 
@@ -572,7 +615,6 @@ CARendererOffscreenDebugColoringEnabled(void)
           [_blurVertProgram bindUniformAtLocation: loc
                                         toFloat4v: components];
 
-          // TODO: replace use of glBegin()/glEnd()
           [firstPassTexture bind];
 
           GLfloat firstPassTextureMaxX = 1.0, firstPassTextureMaxY = 1.0;
@@ -587,16 +629,8 @@ CARendererOffscreenDebugColoringEnabled(void)
               glTexParameteri([firstPassTexture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
             }
-          glBegin(GL_QUADS);
-          glTexCoord2f(0, 0);
-          glVertex2f(-[firstPassTexture width]/2.0, -[firstPassTexture height]/2.0);
-          glTexCoord2f(0, firstPassTextureMaxY);
-          glVertex2f(-[firstPassTexture width]/2.0, [firstPassTexture height]/2.0);
-          glTexCoord2f(firstPassTextureMaxX, firstPassTextureMaxY);
-          glVertex2f([firstPassTexture width]/2.0, [firstPassTexture height]/2.0);
-          glTexCoord2f(firstPassTextureMaxX, 0);
-          glVertex2f([firstPassTexture width]/2.0, -[firstPassTexture height]/2.0);
-          glEnd();
+          CARendererDrawTexturedQuad([firstPassTexture width], [firstPassTexture height],
+                                     firstPassTextureMaxX, firstPassTextureMaxY, NULL);
           glDisable([firstPassTexture textureTarget]);
 
           glUseProgram(0);
@@ -630,16 +664,8 @@ CARendererOffscreenDebugColoringEnabled(void)
               glTexParameteri([secondPassTexture textureTarget], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
               glTexParameteri([secondPassTexture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
-          glBegin(GL_QUADS);
-          glTexCoord2f(0, 0);
-          glVertex2f(-[secondPassTexture width]/2.0, -[secondPassTexture height]/2.0);
-          glTexCoord2f(0, secondPassTextureMaxY);
-          glVertex2f(-[secondPassTexture width]/2.0, [secondPassTexture height]/2.0);
-          glTexCoord2f(secondPassTextureMaxX, secondPassTextureMaxY);
-          glVertex2f([secondPassTexture width]/2.0, [secondPassTexture height]/2.0);
-          glTexCoord2f(secondPassTextureMaxX, 0);
-          glVertex2f([secondPassTexture width]/2.0, -[secondPassTexture height]/2.0);
-          glEnd();
+          CARendererDrawTexturedQuad([secondPassTexture width], [secondPassTexture height],
+                                     secondPassTextureMaxX, secondPassTextureMaxY, NULL);
           glDisable([secondPassTexture textureTarget]);
 
           [firstPassTexture release];
@@ -655,10 +681,10 @@ CARendererOffscreenDebugColoringEnabled(void)
 
       /* Debug tint for offscreen-rendered layers; default off, see
          CARendererOffscreenDebugColoringEnabled(). */
+      const GLfloat offscreenDebugColor[4] = { 0.4, 1.0, 1.0, 1.0 };
+      const GLfloat * quadColor = NULL;
       if (CARendererOffscreenDebugColoringEnabled())
-        glColor3f(0.4, 1.0, 1.0);
-      else
-        glColor3f(1.0, 1.0, 1.0);
+        quadColor = offscreenDebugColor;
 
       /* The simple program intentionally samples the offscreen texture;
          this replaces the former #warning marker. */
@@ -673,7 +699,6 @@ CARendererOffscreenDebugColoringEnabled(void)
                               toUnsignedInt: 0];
 
 
-      // TODO: replace use of glBegin()/glEnd()
       [texture bind];
 
       GLfloat textureMaxX = 1.0, textureMaxY = 1.0;
@@ -688,19 +713,10 @@ CARendererOffscreenDebugColoringEnabled(void)
           glTexParameteri([texture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         }
 
-      glBegin(GL_QUADS);
-      glTexCoord2f(0, 0);
-      glVertex2f(-256, -256);
-      glTexCoord2f(0, textureMaxY);
-      glVertex2f(-256, 256);
-      glTexCoord2f(textureMaxX, textureMaxY);
-      glVertex2f(256, 256);
-      glTexCoord2f(textureMaxX, 0);
-      glVertex2f(256, -256);
-      glEnd();
+      CARendererDrawTexturedQuad(256.0, 256.0,
+                                 textureMaxX, textureMaxY, quadColor);
       glDisable([texture textureTarget]);
 
-      glColor3f(1.0, 1.0, 1.0);
       glUseProgram(0);
 
       return;
