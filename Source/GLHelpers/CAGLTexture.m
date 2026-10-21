@@ -108,6 +108,10 @@
   _width = width;
   _height = height;
 }
+/* Y-ORIENTATION rule 1 (see CARenderer.m): rows are uploaded
+   verbatim, top row first (CoreGraphics/cairo origin).  After this
+   call V = 0 addresses the TOP row of the source data; draw sites
+   must compensate with (1 - y) when their geometry is Y-up. */
 - (void) loadRGBATexImage: (void *)data
                     width: (GLuint)width
                    height: (GLuint)height
@@ -227,6 +231,8 @@
   glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
   #endif
 
+  /* Uploaded without flipping: V = 0 is the image top
+     (Y-ORIENTATION rule 1). */
   [self loadRGBATexImage: data
                    width: width
                   height: height];

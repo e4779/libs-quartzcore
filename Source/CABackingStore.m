@@ -165,6 +165,8 @@ static CGContextRef createCGBitmapContext (int pixelsWide,
   glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
 #endif
 
+  /* Uploaded without flipping: V = 0 is the top row of the bitmap
+     context (Y-ORIENTATION rule 1, see CARenderer.m). */
   [_contentsTexture loadRGBATexImage: CGBitmapContextGetData(_context)
                                width: (GLuint)CGBitmapContextGetWidth(_context)
                               height: (GLuint)CGBitmapContextGetHeight(_context)];

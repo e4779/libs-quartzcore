@@ -544,6 +544,8 @@ CARendererDrawTexturedQuad(GLfloat width, GLfloat height,
               glTexParameteri([texture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
 
+          /* FBO-rendered texture, sampled unflipped (Y-ORIENTATION
+             rule 4). */
           CARendererDrawTexturedQuad([texture width], [texture height],
                                      textureMaxX, textureMaxY, NULL);
           glDisable([texture textureTarget]);
@@ -629,6 +631,8 @@ CARendererDrawTexturedQuad(GLfloat width, GLfloat height,
               glTexParameteri([firstPassTexture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
             }
+          /* FBO-rendered texture, sampled unflipped (Y-ORIENTATION
+             rule 4). */
           CARendererDrawTexturedQuad([firstPassTexture width], [firstPassTexture height],
                                      firstPassTextureMaxX, firstPassTextureMaxY, NULL);
           glDisable([firstPassTexture textureTarget]);
@@ -664,6 +668,8 @@ CARendererDrawTexturedQuad(GLfloat width, GLfloat height,
               glTexParameteri([secondPassTexture textureTarget], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
               glTexParameteri([secondPassTexture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
+          /* FBO-rendered texture, sampled unflipped (Y-ORIENTATION
+             rule 4). */
           CARendererDrawTexturedQuad([secondPassTexture width], [secondPassTexture height],
                                      secondPassTextureMaxX, secondPassTextureMaxY, NULL);
           glDisable([secondPassTexture textureTarget]);
@@ -713,6 +719,8 @@ CARendererDrawTexturedQuad(GLfloat width, GLfloat height,
           glTexParameteri([texture textureTarget], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         }
 
+      /* FBO-rendered texture, sampled unflipped (Y-ORIENTATION
+         rule 4). */
       CARendererDrawTexturedQuad(256.0, 256.0,
                                  textureMaxX, textureMaxY, quadColor);
       glDisable([texture textureTarget]);
@@ -735,6 +743,9 @@ CARendererDrawTexturedQuad(GLfloat width, GLfloat height,
     0.0, 0.0,
   };
   CGRect cr = [layer contentsRect];
+  /* CG-sourced content drawn in Y-up geometry: V is flipped with
+     (1 - y) so the image top row (uploaded at V = 0, rule 1) lands at
+     the layer top (Y-ORIENTATION rule 3). */
   GLfloat texCoords[] = {
     cr.origin.x,                 1.0 - (cr.origin.y),
     cr.origin.x + cr.size.width, 1.0 - (cr.origin.y),
