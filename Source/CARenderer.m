@@ -248,6 +248,29 @@
   return _nextFrameTime;
 }
 
+/* Y-ORIENTATION -- single source of truth for vertical flips.
+ *
+ * 1. Texture uploads never flip rows: CAGLTexture -loadImage: and
+ *    -loadRGBATexImage: and CABackingStore -refresh all hand
+ *    top-left-origin (CoreGraphics/cairo) rows straight to
+ *    glTexImage2D, so in texture coordinate space V = 0 addresses the
+ *    TOP row of the source image.
+ * 2. -render (below) installs a Y-up orthographic pixel-space
+ *    projection with the origin at the lower-left corner of the
+ *    bounds; all layer geometry is expressed in this space.
+ * 3. Geometry is Y-up while source rows are top-first, so every draw
+ *    site rendering CG-sourced content flips V as (1 - y); see the
+ *    texCoords built in -_renderLayer:withTransform:.
+ * 4. FBO-rendered textures (rasterized layers, blur/shadow passes) are
+ *    produced by this renderer inside the same Y-up convention and are
+ *    therefore sampled UNflipped; see CARendererDrawTexturedQuad().
+ *
+ * Consequence: layer CONTENT arrives upright, while the layer TREE
+ * layout is Y-up, i.e. vertically mirrored relative to Cocoa's
+ * top-left coordinate system.  Callers needing Cocoa orientation must
+ * apply a single flip at presentation time instead of patching these
+ * rules piecemeal. */
+
 /* Renders a frame to the target context. Best case scenario, it
    should be rendering the update region only. */
 - (void) render
@@ -260,7 +283,22 @@
 
   [_GLContext makeCurrentContext];
 
+  /* Install the projection the renderer draws with: an orthographic
+     pixel-space projection spanning the bounds, Y axis pointing up,
+     origin at the lower-left corner (Y-ORIENTATION rule 2).  Callers
+     no longer need to set up GL_PROJECTION themselves; whatever
+     matrices they had are saved and restored below.  The viewport is
+     intentionally left untouched so callers keep control over where
+     in the drawable the renderer's bounds land. */
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  glOrtho(0, CGRectGetWidth([self bounds]), 0, CGRectGetHeight([self bounds]),
+          -1.0, 1.0);
+
   glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
 
   glEnableClientState(GL_VERTEX_ARRAY);
   glEnableClientState(GL_COLOR_ARRAY);
@@ -284,6 +322,12 @@
   glDisable(GL_BLEND);
   glBlendFunc(GL_ONE, GL_ZERO);
   glLoadIdentity();
+
+  /* Restore the matrices the caller had before -render. */
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
 }
 
 /* Returns rectangle containing all pixels that should be updated. */
