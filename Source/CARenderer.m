@@ -400,6 +400,25 @@
   /* Then permit current layer to determine rasterization */
   [self _determineAndScheduleRasterizationForLayer: layer];
 }
+
+/* Whether offscreen-rendered layers should be tinted cyan to make them
+   obvious on screen.  This used to be unconditional and was flagged
+   with #warning; it is now enabled only through the environment
+   variable CARENDERER_DEBUG_OFFSCREEN_COLORING, default off. */
+static BOOL
+CARendererOffscreenDebugColoringEnabled(void)
+{
+  static BOOL enabled = NO;
+  static BOOL checked = NO;
+
+  if (!checked)
+    {
+      enabled = (getenv("CARENDERER_DEBUG_OFFSCREEN_COLORING") != NULL);
+      checked = YES;
+    }
+  return enabled;
+}
+
 /* Internal method that renders a single layer and then proceeds by recursing, rendering its children. */
 - (void) _renderLayer: (CALayer *)layer
         withTransform: (CATransform3D)transform
@@ -634,10 +653,15 @@
 
         }
 
-      #warning Intentionally coloring offscreen-rendered layer
-      glColor3f(0.4, 1.0, 1.0);
+      /* Debug tint for offscreen-rendered layers; default off, see
+         CARendererOffscreenDebugColoringEnabled(). */
+      if (CARendererOffscreenDebugColoringEnabled())
+        glColor3f(0.4, 1.0, 1.0);
+      else
+        glColor3f(1.0, 1.0, 1.0);
 
-      #warning Intentionally applying shader to offscreen-rendered layer
+      /* The simple program intentionally samples the offscreen texture;
+         this replaces the former #warning marker. */
       [_simpleProgram use];
       GLint loc;
       if ([texture textureTarget] == GL_TEXTURE_RECTANGLE_ARB)
@@ -676,9 +700,7 @@
       glEnd();
       glDisable([texture textureTarget]);
 
-      #warning Intentionally coloring offscreen-rendered layer
       glColor3f(1.0, 1.0, 1.0);
-      #warning Intentionally applying shader to offscreen-rendered layer
       glUseProgram(0);
 
       return;
